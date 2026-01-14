@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import Dashboard from '../components/Dashboard';
 import Login from '../components/Login';
 
+// Admin Panel Home Page
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
