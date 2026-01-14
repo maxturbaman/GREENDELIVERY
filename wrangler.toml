@@ -7,4 +7,4 @@ command = "npm run build"
 cwd = "./"
 
 [build.upload]
-dir = "out"
+dir = ".next"
