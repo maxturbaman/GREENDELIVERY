@@ -1,0 +1,12 @@
+name = "greendelivery"
+type = "javascript"
+
+[build]
+command = "npm run build"
+cwd = "./"
+
+[build.upload]
+dir = "out"
+format = "service-worker"
+
+compatibility_date = "2026-01-14"
