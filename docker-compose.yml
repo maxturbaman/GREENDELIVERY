@@ -5,13 +5,45 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+    container_name: greendelivery-frontend
+    expose:
+      - "3000"
     environment:
       - NODE_ENV=production
     restart: unless-stopped
-    container_name: greendelivery-admin
+    networks:
+      - greendelivery-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx:
+    image: nginx:latest
+    container_name: greendelivery-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Descomenta la siguiente línea si tienes certificados SSL
+      # - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+    restart: unless-stopped
+    networks:
+      - greendelivery-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  greendelivery-network:
+    driver: bridge
 
 volumes: {}
-
-networks: {}
