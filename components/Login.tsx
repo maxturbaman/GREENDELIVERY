@@ -11,7 +11,7 @@ export default function Login({ setUser }: LoginProps) {
   const [twoFaCode, setTwoFaCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sessionId, setSessionId] = useState('');
+  const [challengeId, setChallengeId] = useState('');
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +19,6 @@ export default function Login({ setUser }: LoginProps) {
     setLoading(true);
 
     try {
-      // Llamar a la API route para verificar credenciales
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -34,40 +33,13 @@ export default function Login({ setUser }: LoginProps) {
         return;
       }
 
-      const userData = data.user;
-
-      // Generar código 2FA y enviarlo por Telegram
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const newSessionId = Math.random().toString(36).substring(7);
-
-      // Guardar código en localStorage temporalmente
-      localStorage.setItem(`2fa_${newSessionId}`, JSON.stringify({
-        code,
-        username,
-        userId: userData.id,
-        timestamp: Date.now(),
-        telegramId: userData.telegram_id,
-        userData: userData
-      }));
-
-      // Enviar código por Telegram
-      const fetchResponse = await fetch('/api/send-2fa-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegramId: userData.telegram_id,
-          code
-        })
-      });
-
-      if (!fetchResponse.ok) {
-        const errorData = await fetchResponse.json();
-        setError(`Error enviando código: ${errorData.error}`);
+      if (!data?.requires2fa || !data?.challengeId) {
+        setError('No se pudo iniciar el desafío 2FA');
         setLoading(false);
         return;
       }
 
-      setSessionId(newSessionId);
+      setChallengeId(String(data.challengeId));
       setStep('twofa');
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión');
@@ -81,32 +53,23 @@ export default function Login({ setUser }: LoginProps) {
     setLoading(true);
 
     try {
-      const sessionData = localStorage.getItem(`2fa_${sessionId}`);
-      if (!sessionData) {
-        setError('Sesión expirada. Intenta de nuevo');
+      const response = await fetch('/api/login/verify-2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          challengeId,
+          code: twoFaCode,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || 'Código incorrecto');
         setLoading(false);
         return;
       }
 
-      const { code, timestamp, userData } = JSON.parse(sessionData);
-
-      // Verificar código (5 minutos de expiración)
-      if (Date.now() - timestamp > 5 * 60 * 1000) {
-        localStorage.removeItem(`2fa_${sessionId}`);
-        setError('Código expirado. Intenta de nuevo');
-        setLoading(false);
-        return;
-      }
-
-      if (twoFaCode !== code) {
-        setError('Código incorrecto');
-        setLoading(false);
-        return;
-      }
-
-      localStorage.setItem('admin_user', JSON.stringify(userData));
-      localStorage.removeItem(`2fa_${sessionId}`);
-      setUser(userData);
+      setUser(data.user);
     } catch (err: any) {
       setError(err.message || 'Error en verificación 2FA');
     }
@@ -205,7 +168,7 @@ export default function Login({ setUser }: LoginProps) {
                 setUsername('');
                 setPassword('');
                 setTwoFaCode('');
-                setSessionId('');
+                setChallengeId('');
               }}
               className="w-full mt-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-xl transition"
             >

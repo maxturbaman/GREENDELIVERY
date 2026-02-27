@@ -2,13 +2,15 @@ const express = require('express');
 const Database = require('better-sqlite3');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 const PORT = Number(process.env.TELEGRAM_BOT_PORT || 4000);
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const DB_PATH = process.env.BOT_DB_PATH || '/app/data/greendelivery.db';
 const TELEGRAM_API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://gd.blck.my';
+const INTERNAL_TOKEN = process.env.TELEGRAM_INTERNAL_TOKEN || '';
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
@@ -91,6 +93,35 @@ function ensureBotToken(res) {
     res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN no configurado' });
     return false;
   }
+  return true;
+}
+
+function ensureInternalToken(req, res) {
+  if (!INTERNAL_TOKEN) {
+    console.warn('[SECURITY] TELEGRAM_INTERNAL_TOKEN no configurado; endpoints internos del bot quedan desprotegidos');
+    return true;
+  }
+
+  const provided = req.headers['x-internal-token'];
+  if (!provided || String(provided) !== INTERNAL_TOKEN) {
+    res.status(401).json({ error: 'Unauthorized internal request' });
+    return false;
+  }
+
+  return true;
+}
+
+function ensureWebhookSecret(req, res) {
+  if (!TELEGRAM_WEBHOOK_SECRET) {
+    return true;
+  }
+
+  const provided = req.headers['x-telegram-bot-api-secret-token'];
+  if (!provided || String(provided) !== TELEGRAM_WEBHOOK_SECRET) {
+    res.status(401).json({ error: 'Invalid webhook secret' });
+    return false;
+  }
+
   return true;
 }
 
@@ -781,6 +812,8 @@ app.get('/health', (_req, res) => {
 });
 
 app.post('/telegram/webhook', async (req, res) => {
+  if (!ensureWebhookSecret(req, res)) return;
+
   try {
     const update = req.body;
     if (update?.message) {
@@ -796,6 +829,7 @@ app.post('/telegram/webhook', async (req, res) => {
 });
 
 app.post('/send-2fa-code', async (req, res) => {
+  if (!ensureInternalToken(req, res)) return;
   if (!ensureBotToken(res)) return;
 
   try {
@@ -817,6 +851,7 @@ app.post('/send-2fa-code', async (req, res) => {
 });
 
 app.post('/notify-order-status', async (req, res) => {
+  if (!ensureInternalToken(req, res)) return;
   if (!ensureBotToken(res)) return;
 
   try {

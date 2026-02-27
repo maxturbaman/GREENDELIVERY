@@ -25,6 +25,12 @@ Actualiza `.env.local` con tus credenciales del bot local de Telegram:
 TELEGRAM_BOT_TOKEN=tu_bot_token
 TELEGRAM_BOT_LOCAL_URL=http://localhost:4000
 TELEGRAM_BOT_PORT=4000
+ADMIN_INITIAL_PASSWORD=una_clave_fuerte_para_primer_admin
+TELEGRAM_INTERNAL_TOKEN=token_largo_compartido_frontend_y_bot
+TELEGRAM_WEBHOOK_SECRET=secreto_para_validar_webhook_telegram
+SESSION_TTL_HOURS=12
+LOGIN_CHALLENGE_TTL_MINUTES=5
+LOGIN_CHALLENGE_MAX_ATTEMPTS=5
 ```
 
 La base de datos ahora es local (SQLite) y se crea automáticamente en `data/greendelivery.db` al iniciar la app.
@@ -64,14 +70,15 @@ npm start
 
 ## 🔐 Seguridad
 
-- Login por Telegram ID
-- Solo usuarios aprobados pueden acceder
-- Roles basados en permisos
-- Base de datos local SQLite
+- Sesiones de servidor con cookie `HttpOnly` (no en `localStorage`)
+- 2FA generado y validado en backend (no en cliente)
+- Autorización por rol en endpoints API (`admin` / `courier`)
+- Hash de contraseñas con `scrypt`
+- Validación de origen en requests mutables (mitigación CSRF)
+- Token interno para llamadas Frontend → Bot
 
 ## 🗄️ Base de datos local
 
 - Archivo: `data/greendelivery.db`
-- Usuario inicial: `admin`
-- Contraseña inicial: `gdalambritoprieto420`
+- Usuario inicial: `admin` (solo se crea si defines `ADMIN_INITIAL_PASSWORD`)
 - Cambiar credenciales al primer inicio

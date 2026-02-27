@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import formidable from 'formidable';
 import db from '../../../lib/db';
+import { requireAuth } from '../../../lib/auth';
 
 export const config = {
   api: {
@@ -27,6 +28,9 @@ function parseForm(req: NextApiRequest): Promise<{ fields: formidable.Fields; fi
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const user = requireAuth(req, res, { roles: ['admin'] });
+  if (!user) return;
+
   try {
     if (req.method === 'GET') {
       const products = db.prepare('SELECT * FROM products ORDER BY created_at DESC').all() as any[];

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import db from '../../../../lib/db';
 import { notifyOrderStatus } from '../../../../lib/telegram';
+import { requireAuth } from '../../../../lib/auth';
 
 const ALLOWED_STATUSES = ['pending', 'confirmed', 'in_transit', 'im_here', 'delivered'] as const;
 
@@ -8,6 +9,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'PATCH') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const user = requireAuth(req, res, { roles: ['admin', 'courier'] });
+  if (!user) return;
 
   try {
     const orderId = Number(req.query.id);

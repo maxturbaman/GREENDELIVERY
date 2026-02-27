@@ -13,6 +13,7 @@ services:
     environment:
       - NODE_ENV=production
       - TELEGRAM_BOT_LOCAL_URL=http://bot:4000
+      - TELEGRAM_INTERNAL_TOKEN=${TELEGRAM_INTERNAL_TOKEN}
     restart: unless-stopped
     networks:
       - greendelivery-network
@@ -37,6 +38,8 @@ services:
       - TELEGRAM_BOT_PORT=4000
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - BOT_DB_PATH=/app/data/greendelivery.db
+      - TELEGRAM_INTERNAL_TOKEN=${TELEGRAM_INTERNAL_TOKEN}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}
     volumes:
       - ./data:/app/data
     restart: unless-stopped

@@ -8,18 +8,26 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar si hay usuario logeado
     const checkAuth = async () => {
-      const stored = localStorage.getItem('admin_user');
-      if (stored) {
-        try {
-          const userData = JSON.parse(stored);
-          setUser(userData);
-        } catch (error) {
-          localStorage.removeItem('admin_user');
+      try {
+        const response = await fetch('/api/auth/me');
+        if (!response.ok) {
+          setUser(null);
+          setLoading(false);
+          return;
         }
+
+        const data = await response.json();
+        if (data?.user) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } catch (_error) {
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();

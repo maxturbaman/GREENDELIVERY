@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import formidable from 'formidable';
 import db from '../../../lib/db';
+import { requireAuth } from '../../../lib/auth';
 
 export const config = {
   api: {
@@ -32,6 +33,9 @@ function toLocalImagePath(imageUrl: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const user = requireAuth(req, res, { roles: ['admin'] });
+  if (!user) return;
+
   try {
     const productId = Number(req.query.id);
     if (!productId) {

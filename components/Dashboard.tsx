@@ -34,8 +34,11 @@ export default function Dashboard({ user, setUser }: DashboardProps) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_user');
-    setUser(null);
+    fetch('/api/logout', { method: 'POST' })
+      .catch(() => null)
+      .finally(() => {
+        setUser(null);
+      });
   };
 
   const isAdmin = user.role?.name === 'admin';

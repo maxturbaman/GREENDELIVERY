@@ -1,10 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import db from '../../../../lib/db';
+import { requireAuth } from '../../../../lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PATCH') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const user = requireAuth(req, res, { roles: ['admin'] });
+  if (!user) return;
 
   try {
     const userId = Number(req.query.id);

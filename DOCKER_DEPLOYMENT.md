@@ -20,6 +20,22 @@ Telegram Local Bot (puerto 4000, interno)
 - Docker Compose
 - (Opcional) Certificados SSL para HTTPS
 
+## Variables de entorno recomendadas
+
+Define en tu entorno (o archivo `.env`) al menos:
+
+```bash
+TELEGRAM_BOT_TOKEN=tu_token_telegram
+TELEGRAM_INTERNAL_TOKEN=token_interno_largo
+TELEGRAM_WEBHOOK_SECRET=secreto_webhook_telegram
+ADMIN_INITIAL_PASSWORD=clave_fuerte_admin_inicial
+```
+
+Notas:
+- `TELEGRAM_INTERNAL_TOKEN` protege llamadas internas entre frontend y bot.
+- `TELEGRAM_WEBHOOK_SECRET` valida que el webhook realmente venga de Telegram.
+- `ADMIN_INITIAL_PASSWORD` evita credenciales por defecto inseguras.
+
 ## Construcción y despliegue
 
 ### Con Docker Compose (Recomendado)

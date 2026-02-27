@@ -1,7 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import db from '../../../lib/db';
+import { requireAuth } from '../../../lib/auth';
+import { hashPassword } from '../../../lib/password';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const user = requireAuth(req, res, { roles: ['admin'] });
+  if (!user) return;
+
   try {
     if (req.method === 'GET') {
       const users = db.prepare('SELECT * FROM users ORDER BY created_at DESC').all() as any[];
@@ -13,6 +18,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const roleMap: Record<string, number> = { admin: 1, courier: 2, customer: 3 };
       const roleId = roleMap[role] || 3;
+
+      if (![1, 2, 3].includes(roleId)) {
+        return res.status(400).json({ error: 'Rol inválido' });
+      }
+
       const approved = roleId === 3 ? 0 : 1;
 
       if (roleId === 3 && !telegramId) {
@@ -28,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         username ? String(username) : null,
-        password ? String(password) : null,
+        password ? hashPassword(String(password)) : null,
         null,
         null,
         null,

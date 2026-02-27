@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { send2FACode } from '../../lib/telegram';
+import { requireAuth } from '../../lib/auth';
 
 export default async function handler(
   req: NextApiRequest,
@@ -8,6 +9,9 @@ export default async function handler(
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const user = requireAuth(req, res, { roles: ['admin', 'courier'] });
+  if (!user) return;
 
   try {
     const { telegramId, code } = req.body;

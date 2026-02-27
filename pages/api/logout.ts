@@ -1,22 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import db from '../../../lib/db';
-import { requireAuth } from '../../../lib/auth';
+import { clearSession, enforceSameOrigin } from '../../lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'DELETE') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const user = requireAuth(req, res, { roles: ['admin'] });
-  if (!user) return;
+  if (!enforceSameOrigin(req, res)) {
+    return;
+  }
 
   try {
-    const userId = Number(req.query.id);
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing user id' });
-    }
-
-    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    clearSession(req, res);
     return res.status(200).json({ ok: true });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'Error interno del servidor' });
