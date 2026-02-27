@@ -8,6 +8,10 @@ Usuario (Internet)
 Nginx (Reverse Proxy en puerto 80/443)
     ↓
 Next.js Frontend (puerto 3000, interno)
+  ↓
+SQLite local (archivo en volumen)
+
+Telegram Local Bot (puerto 4000, interno)
 ```
 
 ## Requisitos
@@ -56,6 +60,14 @@ No es necesario especificar el puerto 3000, ya que Nginx actúa como proxy en el
 - **Puerto interno**: 3000
 - **Acceso externo**: A través de Nginx
 - **Build**: Multistage (optimizado)
+- **DB**: SQLite local en volumen `./data:/app/data`
+
+### Bot Telegram local
+
+- **Container**: greendelivery-bot
+- **Puerto interno**: 4000
+- **Token**: `TELEGRAM_BOT_TOKEN`
+- **Uso**: envía códigos 2FA y notificaciones de estados
 
 ### Nginx (Reverse Proxy)
 

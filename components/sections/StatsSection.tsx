@@ -49,17 +49,17 @@ export default function StatsSection({ stats }: { stats: Stats }) {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Estadísticas</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-5 sm:mb-8">Estadísticas</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4">
         {cards.map((card, index) => (
-          <div key={index} className="bg-white rounded-lg shadow p-6">
+          <div key={index} className="panel-card p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">{card.title}</p>
-                <p className="text-2xl font-bold mt-2">{card.value}</p>
+                <p className="text-2xl font-bold mt-2 text-slate-800">{card.value}</p>
               </div>
-              <div className={`${card.color} text-white text-3xl p-3 rounded`}>
+              <div className={`${card.color} text-white text-2xl sm:text-3xl p-2.5 sm:p-3 rounded-xl`}>
                 {card.icon}
               </div>
             </div>

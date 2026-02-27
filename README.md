@@ -19,19 +19,32 @@ npm install
 
 ## 🔧 Configuración
 
-Actualiza `.env.local` con tus credenciales de Supabase y Telegram:
+Actualiza `.env.local` con tus credenciales del bot local de Telegram:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=tu_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key
-NEXT_PUBLIC_BOT_TOKEN=tu_bot_token
-NEXT_PUBLIC_WORKER_URL=https://telegram-bot.blck.my
+TELEGRAM_BOT_TOKEN=tu_bot_token
+TELEGRAM_BOT_LOCAL_URL=http://localhost:4000
+TELEGRAM_BOT_PORT=4000
 ```
+
+La base de datos ahora es local (SQLite) y se crea automáticamente en `data/greendelivery.db` al iniciar la app.
 
 ## 🏃 Ejecutar en desarrollo
 
 ```bash
 npm run dev
+```
+
+Bot local (en otra terminal):
+
+```bash
+npm run bot
+```
+
+O ambos juntos:
+
+```bash
+npm run dev:full
 ```
 
 Abre http://localhost:3000
@@ -54,4 +67,11 @@ npm start
 - Login por Telegram ID
 - Solo usuarios aprobados pueden acceder
 - Roles basados en permisos
-- RLS habilitado en Supabase
+- Base de datos local SQLite
+
+## 🗄️ Base de datos local
+
+- Archivo: `data/greendelivery.db`
+- Usuario inicial: `admin`
+- Contraseña inicial: `gdalambritoprieto420`
+- Cambiar credenciales al primer inicio

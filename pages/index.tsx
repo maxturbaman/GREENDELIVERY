@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import Dashboard from '../components/Dashboard';
 import Login from '../components/Login';
 

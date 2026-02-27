@@ -1,32 +1,74 @@
 import { useState, useEffect } from 'react';
-import { supabase, User } from '../../lib/supabase';
+import { User } from '../../lib/types';
+
+const ROLE_OPTIONS = [
+  { value: 1, label: 'Admin' },
+  { value: 2, label: 'Courier' },
+  { value: 3, label: 'Customer' },
+];
+
+function RoleSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: number;
+  onChange: (roleId: number) => void;
+  className: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(parseInt(e.target.value))}
+      className={className}
+    >
+      {ROLE_OPTIONS.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function UserTypeBadge({ roleId, telegramId }: { roleId: number; telegramId?: number | null }) {
+  const isCustomer = roleId === 3;
+
+  return (
+    <span
+      className={`px-2 py-1 rounded text-xs font-bold ${
+        isCustomer ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+      }`}
+    >
+      {isCustomer ? `🤖 Bot + Telegram: ${telegramId || 'N/A'}` : '📱 Panel solo'}
+    </span>
+  );
+}
+
+function UserStatusBadge({ approved }: { approved: boolean }) {
+  return (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+        approved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+      }`}
+    >
+      {approved ? '✓ Aprobado' : '⏳ Pendiente'}
+    </span>
+  );
+}
 
 export default function UsersSection() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [formData, setFormData] = useState({
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [creatingStaff, setCreatingStaff] = useState(false);
+  const [customerTelegramId, setCustomerTelegramId] = useState('');
+  const [staffData, setStaffData] = useState({
+    role: 'courier', // admin, courier
     username: '',
     password: '',
-    firstName: '',
-    phone: '',
-    address: '',
-    role: 'customer', // admin, courier, customer
-    telegramId: '',
   });
-
-  const roleMap: { [key: string]: number } = {
-    admin: 1,
-    courier: 2,
-    customer: 3,
-  };
-
-  const roleNames: { [key: number]: string } = {
-    1: 'Admin',
-    2: 'Courier',
-    3: 'Customer',
-  };
 
   useEffect(() => {
     loadUsers();
@@ -34,12 +76,10 @@ export default function UsersSection() {
 
   const loadUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const response = await fetch('/api/users');
+      const data = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) throw new Error(data.error || 'Error loading users');
       setUsers(data || []);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -47,70 +87,83 @@ export default function UsersSection() {
     setLoading(false);
   };
 
-  const createUser = async (e: React.FormEvent) => {
+  const createCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreating(true);
+    setCreatingCustomer(true);
 
     try {
-      if (!formData.username || !formData.password || !formData.firstName) {
-        alert('Completa al menos: username, contraseña, y nombre');
-        setCreating(false);
+      if (!customerTelegramId) {
+        alert('Debes ingresar el ID de Telegram del customer');
+        setCreatingCustomer(false);
         return;
       }
 
-      // Para customers: requiere Telegram ID
-      if (formData.role === 'customer' && !formData.telegramId) {
-        alert('Los usuarios Customer deben tener un ID de Telegram');
-        setCreating(false);
-        return;
-      }
-
-      // Crear usuario
-      const { error } = await supabase.from('users').insert([
-        {
-          username: formData.username,
-          password: formData.password,
-          first_name: formData.firstName,
-          phone: formData.phone || null,
-          address: formData.address || null,
-          telegram_id: formData.telegramId || null,
-          role_id: roleMap[formData.role],
-          approved: formData.role === 'customer' ? false : true, // Admin/Courier auto-approved
-        },
-      ]);
-
-      if (error) throw error;
-
-      alert(
-        `Usuario ${formData.username} creado exitosamente como ${formData.role}`
-      );
-      setFormData({
-        username: '',
-        password: '',
-        firstName: '',
-        phone: '',
-        address: '',
-        role: 'customer',
-        telegramId: '',
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'customer',
+          telegramId: customerTelegramId,
+        }),
       });
-      setShowCreateForm(false);
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo crear el usuario');
+
+      alert('Customer creado exitosamente');
+      setCustomerTelegramId('');
       loadUsers();
     } catch (error) {
       console.error('Error creating user:', error);
       alert(`Error: ${error instanceof Error ? error.message : 'No se pudo crear el usuario'}`);
     } finally {
-      setCreating(false);
+      setCreatingCustomer(false);
+    }
+  };
+
+  const createStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingStaff(true);
+
+    try {
+      if (!staffData.username || !staffData.password) {
+        alert('Debes ingresar username y contraseña');
+        setCreatingStaff(false);
+        return;
+      }
+
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(staffData),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo crear el usuario');
+
+      alert(`${staffData.role === 'admin' ? 'Admin' : 'Courier'} creado exitosamente`);
+      setStaffData({
+        role: 'courier',
+        username: '',
+        password: '',
+      });
+      loadUsers();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'No se pudo crear el usuario'}`);
+    } finally {
+      setCreatingStaff(false);
     }
   };
 
   const approveUser = async (userId: number) => {
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ approved: true })
-        .eq('id', userId);
+      const response = await fetch(`/api/users/${userId}/approve`, {
+        method: 'PATCH',
+      });
 
-      if (error) throw error;
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo aprobar usuario');
       loadUsers();
       alert('Usuario aprobado');
     } catch (error) {
@@ -120,12 +173,14 @@ export default function UsersSection() {
 
   const updateUserRole = async (userId: number, roleId: number) => {
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ role_id: roleId })
-        .eq('id', userId);
+      const response = await fetch(`/api/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roleId }),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo actualizar rol');
       loadUsers();
     } catch (error) {
       console.error('Error updating role:', error);
@@ -136,9 +191,12 @@ export default function UsersSection() {
     if (!confirm(`¿Eliminar usuario ${username}?`)) return;
 
     try {
-      const { error } = await supabase.from('users').delete().eq('id', userId);
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+      });
 
-      if (error) throw error;
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo eliminar usuario');
       alert('Usuario eliminado');
       loadUsers();
     } catch (error) {
@@ -148,146 +206,159 @@ export default function UsersSection() {
 
   if (loading) return <div className="text-center py-8">Cargando usuarios...</div>;
 
+  const customers = users.filter((user) => user.role_id === 3);
+  const staff = users.filter((user) => user.role_id === 1 || user.role_id === 2);
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">👥 Gestión de Usuarios</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">👥 Gestión de Usuarios</h1>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold"
         >
           {showCreateForm ? 'Cancelar' : '+ Crear Usuario'}
         </button>
       </div>
 
       {showCreateForm && (
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-bold mb-4">Crear Nuevo Usuario</h2>
-          <form onSubmit={createUser}>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-bold mb-2">
-                  Username *
-                </label>
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-2">
-                  Contraseña *
-                </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-2">
-                  Nombre Completo *
-                </label>
-                <input
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-2">Teléfono</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-bold mb-2">Dirección</label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-2">Rol *</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) =>
-                    setFormData({ ...formData, role: e.target.value })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="customer">Customer (Bot + Telegram ID)</option>
-                  <option value="courier">Courier (Panel solamente)</option>
-                  <option value="admin">Admin (Panel solamente)</option>
-                </select>
-              </div>
-              {formData.role === 'customer' && (
-                <div>
-                  <label className="block text-sm font-bold mb-2">
-                    ID de Telegram * (para Customer)
-                  </label>
+        <div className="panel-card p-4 sm:p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4">Crear Usuarios</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+              <h3 className="text-lg font-bold mb-3">Crear Customer</h3>
+              <form onSubmit={createCustomer}>
+                <div className="mb-4">
+                  <label className="block text-sm font-bold mb-2">ID de Telegram *</label>
                   <input
                     type="number"
-                    value={formData.telegramId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, telegramId: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    required={formData.role === 'customer'}
+                    value={customerTelegramId}
+                    onChange={(e) => setCustomerTelegramId(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2"
+                    required
                   />
                 </div>
-              )}
+
+                <p className="text-xs text-blue-800 bg-blue-50 p-2 rounded mb-4">
+                  La dirección del customer se solicita cuando crea su orden en el bot.
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={creatingCustomer}
+                  className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-2.5 rounded-lg"
+                >
+                  {creatingCustomer ? 'Creando...' : 'Crear Customer'}
+                </button>
+              </form>
             </div>
 
-            <div className="bg-blue-50 p-3 rounded mb-4 text-sm text-blue-800">
-              <p>
-                <strong>Nota:</strong> Admin y Courier se aprueban automáticamente
-                y solo pueden acceder al panel. Los Customers requieren ID de
-                Telegram para usar el bot.
-              </p>
-            </div>
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+              <h3 className="text-lg font-bold mb-3">Crear Admin / Courier</h3>
+              <form onSubmit={createStaff}>
+                <div className="mb-3">
+                  <label className="block text-sm font-bold mb-2">Rol *</label>
+                  <select
+                    value={staffData.role}
+                    onChange={(e) => setStaffData({ ...staffData, role: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="courier">Courier</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
 
-            <button
-              type="submit"
-              disabled={creating}
-              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-2 rounded"
-            >
-              {creating ? 'Creando...' : 'Crear Usuario'}
-            </button>
-          </form>
+                <div className="mb-3">
+                  <label className="block text-sm font-bold mb-2">Username *</label>
+                  <input
+                    type="text"
+                    value={staffData.username}
+                    onChange={(e) => setStaffData({ ...staffData, username: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                    required
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-bold mb-2">Contraseña *</label>
+                  <input
+                    type="password"
+                    value={staffData.password}
+                    onChange={(e) => setStaffData({ ...staffData, password: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={creatingStaff}
+                  className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-2.5 rounded-lg"
+                >
+                  {creatingStaff ? 'Creando...' : 'Crear Usuario de Panel'}
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Tabla de usuarios */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <h2 className="text-xl font-bold mb-3">Customers</h2>
+      <div className="lg:hidden space-y-3 mb-8">
+        {customers.map((user) => {
+          const roleId = user.role_id;
+          const isCustomer = roleId === 3;
+
+          return (
+            <div key={user.id} className="panel-card p-4">
+              <div className="flex justify-between items-start gap-3 mb-2">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Usuario</p>
+                  <p className="font-mono text-base text-slate-900">{user.username || '-'}</p>
+                </div>
+                <UserStatusBadge approved={user.approved} />
+              </div>
+
+              <div className="mb-3">
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Tipo</p>
+                <p className="text-sm text-slate-700">
+                  {isCustomer ? `🤖 Bot + Telegram: ${user.telegram_id || 'N/A'}` : '📱 Panel solo'}
+                </p>
+              </div>
+
+              <RoleSelect
+                value={roleId}
+                onChange={(nextRoleId) => updateUserRole(user.id, nextRoleId)}
+                className="w-full border rounded-xl px-3 py-2.5 text-[15px] mb-3"
+              />
+
+              <div className="flex gap-2">
+                {!user.approved && isCustomer && (
+                  <button
+                    onClick={() => approveUser(user.id)}
+                    className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2.5 rounded-xl text-sm font-semibold"
+                  >
+                    ✓ Aprobar
+                  </button>
+                )}
+                <button
+                  onClick={() => deleteUser(user.id, user.username || `telegram-${user.telegram_id || user.id}`)}
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-2.5 rounded-xl text-sm font-semibold"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden lg:block panel-card overflow-hidden mb-8">
         <table className="w-full">
-          <thead className="bg-gray-200">
+          <thead className="bg-slate-100">
             <tr>
               <th className="px-6 py-3 text-left text-sm font-bold">Username</th>
-              <th className="px-6 py-3 text-left text-sm font-bold">Nombre</th>
-              <th className="px-6 py-3 text-left text-sm font-bold">Teléfono</th>
               <th className="px-6 py-3 text-left text-sm font-bold">Rol</th>
               <th className="px-6 py-3 text-left text-sm font-bold">Tipo</th>
               <th className="px-6 py-3 text-left text-sm font-bold">Estado</th>
@@ -295,54 +366,24 @@ export default function UsersSection() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => {
+            {customers.map((user) => {
               const roleId = user.role_id;
-              const isAdmin = roleId === 1;
-              const isCourier = roleId === 2;
               const isCustomer = roleId === 3;
 
               return (
                 <tr key={user.id} className="border-t hover:bg-gray-50">
-                  <td className="px-6 py-4 font-mono text-sm">{user.username}</td>
-                  <td className="px-6 py-4">{user.first_name}</td>
-                  <td className="px-6 py-4">{user.phone || '-'}</td>
+                  <td className="px-6 py-4 font-mono text-sm">{user.username || '-'}</td>
                   <td className="px-6 py-4">
-                    <select
+                    <RoleSelect
                       value={roleId}
-                      onChange={(e) =>
-                        updateUserRole(user.id, parseInt(e.target.value))
-                      }
+                      onChange={(nextRoleId) => updateUserRole(user.id, nextRoleId)}
                       className="border rounded px-2 py-1 text-sm"
-                    >
-                      <option value={1}>Admin</option>
-                      <option value={2}>Courier</option>
-                      <option value={3}>Customer</option>
-                    </select>
+                    />
                   </td>
                   <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-bold ${
-                        isCustomer
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-purple-100 text-purple-800'
-                      }`}
-                    >
-                      {isCustomer
-                        ? `🤖 Bot + Telegram: ${user.telegram_id || 'N/A'}`
-                        : `📱 Panel solo`}
-                    </span>
+                    <UserTypeBadge roleId={roleId} telegramId={user.telegram_id} />
                   </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        user.approved
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}
-                    >
-                      {user.approved ? '✓ Aprobado' : '⏳ Pendiente'}
-                    </span>
-                  </td>
+                  <td className="px-6 py-4"><UserStatusBadge approved={user.approved} /></td>
                   <td className="px-6 py-4 space-x-2">
                     {!user.approved && isCustomer && (
                       <button
@@ -353,7 +394,7 @@ export default function UsersSection() {
                       </button>
                     )}
                     <button
-                      onClick={() => deleteUser(user.id, user.username || '')}
+                      onClick={() => deleteUser(user.id, user.username || `telegram-${user.telegram_id || user.id}`)}
                       className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
                     >
                       🗑️
@@ -362,6 +403,103 @@ export default function UsersSection() {
                 </tr>
               );
             })}
+            {customers.length === 0 && (
+              <tr>
+                <td className="px-6 py-4 text-sm text-gray-500" colSpan={5}>
+                  No hay customers registrados.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="text-xl font-bold mb-3">Staff (Admin / Courier)</h2>
+      <div className="lg:hidden space-y-3 mb-8">
+        {staff.map((user) => {
+          const roleId = user.role_id;
+
+          return (
+            <div key={user.id} className="panel-card p-4">
+              <div className="flex justify-between items-start gap-3 mb-2">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Usuario</p>
+                  <p className="font-mono text-base text-slate-900">{user.username || '-'}</p>
+                </div>
+                <UserStatusBadge approved={user.approved} />
+              </div>
+
+              <div className="mb-3">
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Tipo</p>
+                <div>
+                  <UserTypeBadge roleId={roleId} telegramId={user.telegram_id} />
+                </div>
+              </div>
+
+              <RoleSelect
+                value={roleId}
+                onChange={(nextRoleId) => updateUserRole(user.id, nextRoleId)}
+                className="w-full border rounded-xl px-3 py-2.5 text-[15px] mb-3"
+              />
+
+              <button
+                onClick={() => deleteUser(user.id, user.username || `telegram-${user.telegram_id || user.id}`)}
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-2.5 rounded-xl text-sm font-semibold"
+              >
+                🗑️ Eliminar
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden lg:block panel-card overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-slate-100">
+            <tr>
+              <th className="px-6 py-3 text-left text-sm font-bold">Username</th>
+              <th className="px-6 py-3 text-left text-sm font-bold">Rol</th>
+              <th className="px-6 py-3 text-left text-sm font-bold">Tipo</th>
+              <th className="px-6 py-3 text-left text-sm font-bold">Estado</th>
+              <th className="px-6 py-3 text-left text-sm font-bold">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {staff.map((user) => {
+              const roleId = user.role_id;
+
+              return (
+                <tr key={user.id} className="border-t hover:bg-gray-50">
+                  <td className="px-6 py-4 font-mono text-sm">{user.username || '-'}</td>
+                  <td className="px-6 py-4">
+                    <RoleSelect
+                      value={roleId}
+                      onChange={(nextRoleId) => updateUserRole(user.id, nextRoleId)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <UserTypeBadge roleId={roleId} telegramId={user.telegram_id} />
+                  </td>
+                  <td className="px-6 py-4"><UserStatusBadge approved={user.approved} /></td>
+                  <td className="px-6 py-4 space-x-2">
+                    <button
+                      onClick={() => deleteUser(user.id, user.username || `telegram-${user.telegram_id || user.id}`)}
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                    >
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {staff.length === 0 && (
+              <tr>
+                <td className="px-6 py-4 text-sm text-gray-500" colSpan={5}>
+                  No hay usuarios de staff registrados.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

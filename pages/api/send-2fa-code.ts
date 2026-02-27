@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { send2FACode } from '../../lib/telegram';
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,22 +16,7 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing telegramId or code' });
     }
 
-    const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL || 'https://telegram-bot.blck.my';
-
-    const response = await fetch(`${workerUrl}/send-2fa-code`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        telegramId,
-        code,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send 2FA code');
-    }
+    await send2FACode(Number(telegramId), String(code));
 
     return res.status(200).json({ ok: true });
   } catch (error: any) {

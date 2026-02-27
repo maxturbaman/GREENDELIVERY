@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { Order, Product, User } from '../lib/supabase';
+import { User } from '../lib/types';
 import UsersSection from './sections/UsersSection';
 import OrdersSection from './sections/OrdersSection';
 import ProductsSection from './sections/ProductsSection';
@@ -21,32 +20,14 @@ export default function Dashboard({ user, setUser }: DashboardProps) {
 
   const loadStats = async () => {
     try {
-      // Total de órdenes
-      const { data: orders } = await supabase.from('orders').select('*');
-      // Órdenes completadas
-      const { data: completed } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('completed', true);
-      // Órdenes por enviar
-      const { data: pending } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('status', 'pending');
-      // Total de usuarios
-      const { data: users } = await supabase.from('users').select('*');
-      // Total de ventas
-      const { data: orderItems } = await supabase.from('orders').select('total');
+      const response = await fetch('/api/stats');
+      const data = await response.json();
 
-      const totalSales = orderItems?.reduce((sum: number, o: any) => sum + (o.total || 0), 0) || 0;
+      if (!response.ok) {
+        throw new Error(data.error || 'No se pudieron cargar las estadísticas');
+      }
 
-      setStats({
-        totalOrders: orders?.length || 0,
-        completedOrders: completed?.length || 0,
-        pendingOrders: pending?.length || 0,
-        totalUsers: users?.length || 0,
-        totalSales,
-      });
+      setStats(data);
     } catch (error) {
       console.error('Error loading stats:', error);
     }
@@ -59,74 +40,95 @@ export default function Dashboard({ user, setUser }: DashboardProps) {
 
   const isAdmin = user.role?.name === 'admin';
 
+  const tabs = [
+    { key: 'stats', label: 'Estadísticas', icon: '📊' },
+    { key: 'orders', label: 'Órdenes', icon: '📦' },
+    ...(isAdmin
+      ? [
+          { key: 'products', label: 'Productos', icon: '🛍️' },
+          { key: 'users', label: 'Usuarios', icon: '👥' },
+        ]
+      : []),
+  ];
+
+  const activeTabLabel = tabs.find((tab) => tab.key === activeTab)?.label || 'Panel';
+
+  const handleSelectTab = (tab: string) => {
+    setActiveTab(tab);
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-800 text-white p-6">
-        <h2 className="text-2xl font-bold mb-8">GreenDelivery</h2>
-
-        <nav className="space-y-4">
-          <button
-            onClick={() => setActiveTab('stats')}
-            className={`w-full text-left px-4 py-2 rounded ${
-              activeTab === 'stats' ? 'bg-blue-600' : 'hover:bg-gray-700'
-            }`}
-          >
-            📊 Estadísticas
-          </button>
-
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`w-full text-left px-4 py-2 rounded ${
-              activeTab === 'orders' ? 'bg-blue-600' : 'hover:bg-gray-700'
-            }`}
-          >
-            📦 Órdenes
-          </button>
-
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => setActiveTab('products')}
-                className={`w-full text-left px-4 py-2 rounded ${
-                  activeTab === 'products' ? 'bg-blue-600' : 'hover:bg-gray-700'
-                }`}
-              >
-                🛍️ Productos
-              </button>
-
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`w-full text-left px-4 py-2 rounded ${
-                  activeTab === 'users' ? 'bg-blue-600' : 'hover:bg-gray-700'
-                }`}
-              >
-                👥 Usuarios
-              </button>
-            </>
-          )}
-        </nav>
-
-        <div className="mt-12 pt-6 border-t border-gray-700">
-          <p className="text-sm text-gray-400 mb-4">
-            {user.first_name} ({user.role?.name})
-          </p>
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      <div className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500">GreenDelivery</p>
+            <h1 className="text-lg font-semibold">{activeTabLabel}</h1>
+          </div>
           <button
             onClick={handleLogout}
-            className="w-full bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm"
+            className="px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold"
           >
-            Cerrar Sesión
+            Salir
           </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-8">
-          {activeTab === 'stats' && stats && <StatsSection stats={stats} />}
-          {activeTab === 'orders' && <OrdersSection isAdmin={isAdmin} />}
-          {activeTab === 'products' && isAdmin && <ProductsSection />}
-          {activeTab === 'users' && isAdmin && <UsersSection />}
+      <div className="flex lg:min-h-screen">
+        <aside className="hidden lg:block w-72 bg-slate-900 text-white p-5">
+          <h2 className="text-2xl font-bold mb-6">GreenDelivery</h2>
+
+          <nav className="space-y-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => handleSelectTab(tab.key)}
+                className={`w-full min-h-[48px] text-left px-4 py-3 rounded-xl text-sm font-semibold transition ${
+                  activeTab === tab.key ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="mt-8 pt-5 border-t border-slate-700">
+            <p className="text-xs text-slate-300 mb-4">
+              {user.first_name || user.username || 'Usuario'} ({user.role?.name})
+            </p>
+            <button
+              onClick={handleLogout}
+              className="w-full bg-red-600 hover:bg-red-700 px-4 py-2.5 rounded-lg text-sm font-semibold"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
+        </aside>
+
+        <main className="flex-1 w-full pb-24 lg:pb-0">
+          <div className="p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+            {activeTab === 'stats' && stats && <StatsSection stats={stats} />}
+            {activeTab === 'orders' && <OrdersSection isAdmin={isAdmin} />}
+            {activeTab === 'products' && isAdmin && <ProductsSection />}
+            {activeTab === 'users' && isAdmin && <UsersSection />}
+          </div>
+        </main>
+      </div>
+
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur">
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleSelectTab(tab.key)}
+              className={`h-16 px-1 text-[11px] leading-tight font-semibold flex flex-col items-center justify-center gap-0.5 ${
+                activeTab === tab.key ? 'text-blue-600' : 'text-slate-500'
+              }`}
+            >
+              <div className="text-base leading-none">{tab.icon}</div>
+              <span className="truncate max-w-full">{tab.label}</span>
+            </button>
+          ))}
         </div>
       </div>
     </div>

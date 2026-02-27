@@ -8,17 +8,46 @@ services:
     container_name: greendelivery-frontend
     expose:
       - "3000"
+    ports:
+      - "127.0.0.1:3001:3000"
     environment:
       - NODE_ENV=production
+      - TELEGRAM_BOT_LOCAL_URL=http://bot:4000
     restart: unless-stopped
     networks:
       - greendelivery-network
+    volumes:
+      - ./data:/app/data
+      - /var/www/gd-uploads:/app/public/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: greendelivery-bot
+    expose:
+      - "4000"
+    environment:
+      - TELEGRAM_BOT_PORT=4000
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - BOT_DB_PATH=/app/data/greendelivery.db
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - greendelivery-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   nginx:
     image: nginx:latest
@@ -32,6 +61,7 @@ services:
       # - ./certs:/etc/nginx/certs:ro
     depends_on:
       - frontend
+      - bot
     restart: unless-stopped
     networks:
       - greendelivery-network

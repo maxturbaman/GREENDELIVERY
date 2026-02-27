@@ -114,9 +114,9 @@ export default function Login({ setUser }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-2">GreenDelivery Admin</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-5 sm:p-8 w-full max-w-md border border-white/30">
+        <h1 className="text-2xl sm:text-3xl font-bold text-center mb-2">GreenDelivery Admin</h1>
         <p className="text-center text-gray-600 text-sm mb-8">
           {step === 'credentials' ? 'Ingresa tus credenciales' : 'Verifica con código 2FA'}
         </p>
@@ -132,7 +132,8 @@ export default function Login({ setUser }: LoginProps) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Ingresa tu usuario"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                autoComplete="username"
+                className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
@@ -146,7 +147,8 @@ export default function Login({ setUser }: LoginProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                autoComplete="current-password"
+                className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
@@ -156,7 +158,7 @@ export default function Login({ setUser }: LoginProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-xl transition"
             >
               {loading ? 'Verificando...' : 'Siguiente'}
             </button>
@@ -179,7 +181,9 @@ export default function Login({ setUser }: LoginProps) {
                 value={twoFaCode}
                 onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="000000"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center text-2xl font-mono focus:outline-none focus:border-blue-500"
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                className="w-full px-3 py-3 border border-gray-300 rounded-xl text-center text-2xl font-mono tracking-[0.25em] focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
@@ -189,7 +193,7 @@ export default function Login({ setUser }: LoginProps) {
             <button
               type="submit"
               disabled={loading || twoFaCode.length !== 6}
-              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-xl transition"
             >
               {loading ? 'Verificando...' : 'Verificar'}
             </button>
@@ -203,7 +207,7 @@ export default function Login({ setUser }: LoginProps) {
                 setTwoFaCode('');
                 setSessionId('');
               }}
-              className="w-full mt-3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition"
+              className="w-full mt-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-xl transition"
             >
               Volver
             </button>

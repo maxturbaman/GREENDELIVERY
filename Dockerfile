@@ -1,34 +1,22 @@
-# Stage 1: Build
-FROM node:22-alpine AS builder
-
+FROM node:22-alpine AS deps
 WORKDIR /app
-
-# Copiar archivos de dependencias
-COPY package.json package-lock.json* yarn.lock* bun.lock* ./
-
-# Instalar dependencias
+COPY package.json package-lock.json* ./
 RUN npm install
 
-# Copiar el código fuente
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Compilar la aplicación Next.js
 RUN npm run build
 
-# Stage 2: Production
-FROM node:22-alpine
-
+FROM node:22-alpine AS runner
 WORKDIR /app
+ENV NODE_ENV=production
 
-# Copiar solo los archivos necesarios del stage anterior
-COPY --from=builder /app/out ./out
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
 
-# Instalar un servidor HTTP simple para servir los archivos estáticos
-RUN npm install -g serve
-
-# Exponer el puerto
 EXPOSE 3000
-
-# Comando para iniciar el servidor
-CMD ["serve", "-s", "out", "-l", "3000"]
+CMD ["npm", "run", "start"]
